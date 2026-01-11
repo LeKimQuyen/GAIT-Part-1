@@ -8,6 +8,6 @@
   "maxStepsPerEpisode": 400,
   "fpsVisual": 30,
   "fpsFast": 240,
-  "tileSize": 48,
+  "tileSize": 60,
   "seed": 42
 }

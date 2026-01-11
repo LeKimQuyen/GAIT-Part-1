@@ -275,9 +275,36 @@ def sarsa_update(qtab: QTable, s, a, r, sp, ap, alpha, gamma):
     current = qtab.get(s, a)
     target = r + gamma * qtab.get(sp, ap)
     qtab.set(s, a, current + alpha * (target - current))
-    
+
+
 # ==========================================
-# STEP 6: DRAW GRIDWORLD
+# STEP 6: INTRINSIC REWARD
+# ==========================================        
+class IntrinsicReward:
+    '''
+        r = intrinsicRewardStrength / √(n(s) + 1)
+    Where:
+        n(s) = number of visits to the current state during the episode
+        total reward = environment reward + intrinsic reward
+    '''
+    def __init__(self, intrinsic_reward_strength = 0.5):
+        self.intrinsic_reward_strength = intrinsic_reward_strength
+        self.visit_counts = {}
+        
+    def reset(self):
+        self.visit_counts = {}
+        
+    def get_reward(self, state):
+        # Get visit number -> return 0 if no available
+        n = self.visit_counts.get(state, 0)
+        # Calculate
+        r = self.intrinsic_reward_strength / ((n + 1) ** 0.5)
+        self.visit_counts[state] = n + 1
+        
+        return r
+
+# ==========================================
+# STEP 7: DRAW GRIDWORLD
 # ==========================================    
     
 def draw_grid(env: GridWorld, episode, step, epsilon, total_reward):
@@ -375,12 +402,13 @@ def load_images():
     return [apple0, apple1], [fire_0, fire_1, fire_2], rock, key, [chest_closed, chest_opened], monster
     
 # ==========================================
-# STEP 7: MAIN TRAINING LOOP AND CONTROLS
+# STEP 8: MAIN TRAINING LOOP AND CONTROLS
 # ==========================================        
     
 def run_training():
     env = GridWorld(LEVEL6)
     qtab = QTable()
+    intrinsic = IntrinsicReward()
     visualize, running = True, True
     
     # For animation
@@ -391,6 +419,7 @@ def run_training():
     
     for ep in range(EPISODES):
         s = env.reset()
+        intrinsic.reset()
         ep_reward, steps = 0.0, 0
         eps = linear_epsilon(ep, EPS_START, EPS_END, EPS_DECAY_EP)
 
@@ -398,7 +427,6 @@ def run_training():
         a = epsilon_greedy(qtab, s, eps)
 
         while running:
-            
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
@@ -426,7 +454,9 @@ def run_training():
             res = env.step(a)
             # Find next state
             ap = epsilon_greedy(qtab, res.next_state, eps)
-            sarsa_update(qtab, s, a, res.reward, res.next_state, ap, ALPHA, GAMMA)
+            # Calculate intrinsic reward
+            r = intrinsic.get_reward(res.next_state)
+            sarsa_update(qtab, s, a, res.reward + r, res.next_state, ap, ALPHA, GAMMA)
             s = res.next_state
             a = ap
             ep_reward += res.reward

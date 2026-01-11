@@ -148,7 +148,7 @@ class GridWorld:
 
     def step(self, action: int) -> StepResult:
         self.step_count += 1
-        reward, done = -0.01, False     #Todo: explain why -0.01 for each step
+        reward, done = -0.01, False     # penalize for each step the agent moving => the more agent move, the more penalizing it get
 
         # 1) Move agent
         self.agent = self.try_move(self.agent, action)
@@ -204,7 +204,7 @@ def linear_epsilon(ep, start, end, decay_ep):
 def epsilon_greedy(qtab: QTable, s, eps):
     '''
     If eps = 0.7
-    => 30% choose random action. 70% choose action with best value
+    => 30% choose random action, 70% choose action with best value
     '''
     if random.random() < eps:
         return random.choice(ALL_ACTIONS)   # choose random action
