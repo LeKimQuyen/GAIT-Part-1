@@ -310,9 +310,10 @@ class IntrinsicRewardTracker:
     def __init__(self, strength=0.5):
         self.strength = strength
         self.visit_counts = {}
+        self.unique_states_per_episode = []
         
     def reset(self):
-        self.visit_counts = {}
+        self.unique_states_per_episode.append(len(self.visit_counts))
         
     def get(self, s):
         # Return 0 for the first visit
@@ -621,8 +622,15 @@ def run_single_level(level, alg, intrinsic=False):
     # Start training
     if alg == "q" or alg == "qi":
         use_intr = (alg == "qi" or intrinsic)
-        returns = train_q_learning(env, level, use_intr)
+        result = train_q_learning(env, level, use_intr)
         alg_name = "Q-Learning"
+
+        if result is None:
+            return "quit"
+        if isinstance(result, tuple):
+            returns, _ = result
+        else:
+            returns = result
     else:
         returns = train_sarsa(env, level)
         alg_name = "SARSA"
@@ -692,9 +700,14 @@ def run_comparison_task2():
     
     random.seed(CFG["seed"])
     env = GridWorld(LEVELS["1"])
-    returns_q = train_q_learning(env, 1, False)
-    if returns_q is None:
+    result_q = train_q_learning(env, 1, False)
+    if result_q is None:
         return "quit"
+    
+    if isinstance(result_q, tuple):
+        returns_q, _ = result_q
+    else:
+        returns_q = result_q
     
     # Show loading screen for second training
     screen.fill(COL_BG)
@@ -704,9 +717,11 @@ def run_comparison_task2():
     
     random.seed(CFG["seed"])
     env = GridWorld(LEVELS["1"])
-    returns_s = train_sarsa(env, 1)
-    if returns_s is None:
+    result_s = train_sarsa(env, 1)
+    if result_s is None:
         return "quit"
+    
+    returns_s = result_s
     
     # Show comparison chart
     draw_comparison_chart({
@@ -738,9 +753,14 @@ def run_comparison_task4():
         
         random.seed(CFG["seed"])
         env = GridWorld(LEVELS[str(lvl)])
-        returns_q = train_q_learning(env, lvl, False)
-        if returns_q is None:
+        result_q = train_q_learning(env, lvl, False)
+        if result_q is None:
             return "quit"
+        
+        if isinstance(result_q, tuple):
+            returns_q, _ = result_q
+        else:
+            returns_q = result_q
         results[f"L{lvl} Q-Learn"] = returns_q
         
         # Show loading screen
@@ -779,9 +799,14 @@ def run_comparison_task5():
     
     random.seed(CFG["seed"])
     env = GridWorld(LEVELS["6"])
-    returns_without = train_q_learning(env, 6, False)
-    if returns_without is None:
+    result_without = train_q_learning(env, 6, False)
+    if result_without is None:
         return "quit"
+    
+    if isinstance(result_without, tuple):
+        returns_without, _ = result_without
+    else:
+        returns_without = result_without
     
     # Show loading screen
     screen.fill(COL_BG)
@@ -791,9 +816,14 @@ def run_comparison_task5():
     
     random.seed(CFG["seed"])
     env = GridWorld(LEVELS["6"])
-    returns_with = train_q_learning(env, 6, True)
-    if returns_with is None:
+    result_with = train_q_learning(env, 6, True)
+    if result_with is None:
         return "quit"
+    
+    if isinstance(result_with, tuple):
+        returns_with, _ = result_with
+    else:
+        returns_with = result_with
     
     draw_comparison_chart({
         "Without Intrinsic": returns_without,
@@ -818,16 +848,17 @@ def run_comparison_task5():
 
 def train_q_learning(env: GridWorld, lvl, is_intrinsic=False):
     qtab = QTable()
-    intrinsic = IntrinsicRewardTracker(0.5) if is_intrinsic else None
+    intrinsic = IntrinsicRewardTracker() if is_intrinsic else None
     visualize, running, skip = True, True, False
     returns = []
+    returns_total = []      # Track intrinsic rewards
     
     for ep in range(EPISODES):
         if not running or skip: break
         
         s = env.reset()
         if intrinsic: intrinsic.reset()
-        ep_reward, steps = 0.0, 0
+        ep_reward, ep_total_reward, steps = 0.0, 0.0, 0
         eps = linear_epsilon(ep, EPS_START, EPS_END, EPS_DECAY_EP)
         
         while running and not skip:
@@ -855,7 +886,12 @@ def train_q_learning(env: GridWorld, lvl, is_intrinsic=False):
             # Calculate intrinsic reward for Level 6
             total_r = res.reward
             if intrinsic:
-                total_r += intrinsic.get(res.next_state)
+                intrinsic_bonus = intrinsic.get(res.next_state)
+                total_r += intrinsic_bonus
+                ep_total_reward += total_r
+            else:
+                ep_total_reward += res.reward
+                
             q_learning_update(qtab, s, a, total_r, res.next_state, ALPHA, GAMMA)
             s = res.next_state      # assign only state
             ep_reward += res.reward
@@ -873,6 +909,7 @@ def train_q_learning(env: GridWorld, lvl, is_intrinsic=False):
                 break
         
         returns.append(ep_reward)
+        returns_total.append(ep_total_reward)
     
     # Skip to the end of the training
     if skip:
@@ -903,7 +940,7 @@ def train_q_learning(env: GridWorld, lvl, is_intrinsic=False):
             if (ep + 1) % 50 == 0:
                 print(f"Episode {ep + 1}/{EPISODES} complete (background training)")
     
-    return returns
+    return returns, returns_total
 
 def train_sarsa(env: GridWorld, lvl):
     qtab = QTable()

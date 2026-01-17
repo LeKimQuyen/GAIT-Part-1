@@ -76,17 +76,19 @@
           "        A   ",
           "C       A   ",
           "            "],
-
-    "6": ["S           ",
-          "            ",
-          "            ",
-          "  KRRR      ",
-          "    R   A   ",
-          "    R   A   ",
-          "    R   A   ",
-          "        A   ",
-          "        A   ",
-          "     C  A   ",
-          "            ",
-          "            "]
+          
+   "6": [
+  "S    RRRRRRR",
+  "           A",
+  "RRRRR R RRRR",
+  "A     R    R",
+  "RR RRRRR   R",
+  "K          R",
+  "RR RRR RR RR",
+  "       R   R",
+  "RRRR R RRR R",
+  "  A  R R C R",
+  "RRRR R RRR R",
+  "     R     A"
+]
 }
