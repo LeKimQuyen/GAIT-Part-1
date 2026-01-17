@@ -280,19 +280,20 @@ class QTable:
 # STEP 5: Main algorithm functions
 # ==========================================
 
-def linear_epsilon(ep, start, end, decay):
-    if decay <= 0: return end
-    t = min(ep / decay, 1.0)
+def linear_epsilon(ep, start, end, decay_ep):
+    if decay_ep <= 0: return end
+    t = min(ep / decay_ep, 1.0)
     return start + t * (end - start)
 
 def epsilon_greedy(qtab: QTable, s, eps):
-    if random.random() < eps:
-        return random.choice(ALL_ACTIONS)
-    return random.choice(qtab.best_actions(s))
+   if random.random() < eps:
+       return random.choice(ALL_ACTIONS)   # choose random action
+   best = qtab.best_actions(s) # choose actions with best (max) value
+   return random.choice(best)  # random tie-breaking for multiple same value actions
 
 def q_learning_update(qtab: QTable, s, a, r, sp, alpha, gamma):
     current = qtab.get(s, a)
-    target = r + gamma * qtab.best_value(sp)    # Choose the bext (max) value of the state
+    target = r + gamma * qtab.best_value(sp)    # Choose the best (max) value of the state
     qtab.set(s, a, current + alpha * (target - current))
 
 def sarsa_update(qtab: QTable, s, a, r, sp, ap, alpha, gamma):
@@ -304,6 +305,7 @@ def sarsa_update(qtab: QTable, s, a, r, sp, ap, alpha, gamma):
 # ==========================================
 # STEP 6: Intrinsic Reward for Level 6 (Task 5)
 # ==========================================
+
 class IntrinsicRewardTracker:
     def __init__(self, strength=0.5):
         self.strength = strength
@@ -847,14 +849,15 @@ def train_q_learning(env: GridWorld, lvl, is_intrinsic=False):
                     elif env.fire_state == 0:
                         env.fire_dir = 1
             if not running or skip: break
-            
-            a = epsilon_greedy(qtab, s, eps)
+            # Q-Learning implementation where the action is only chosen after finished update
+            a = epsilon_greedy(qtab, s, eps)    # choose action
             res = env.step(a)
+            # Calculate intrinsic reward for Level 6
             total_r = res.reward
             if intrinsic:
                 total_r += intrinsic.get(res.next_state)
             q_learning_update(qtab, s, a, total_r, res.next_state, ALPHA, GAMMA)
-            s = res.next_state
+            s = res.next_state      # assign only state
             ep_reward += res.reward
             steps += 1
             
@@ -936,9 +939,10 @@ def train_sarsa(env: GridWorld, lvl):
             if not running or skip: break
             
             res = env.step(a)
-            ap = epsilon_greedy(qtab, res.next_state, eps)  # Choose next action
+            # SARSA implementation where the next state and action were chosen before update
+            ap = epsilon_greedy(qtab, res.next_state, eps)  # choose next action
             sarsa_update(qtab, s, a, res.reward, res.next_state, ap, ALPHA, GAMMA)
-            s, a = res.next_state, ap
+            s, a = res.next_state, ap   # assign action for the next update (before update)
             ep_reward += res.reward
             steps += 1
             
